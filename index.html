@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Resume Analyzer</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f7fa;
+      color: #333;
+    }
+    .sidebar.closed {
+  transform: translateX(-300px);
+  transition: transform 0.3s ease;
+}
+
+.main.sidebar-closed {
+  margin-left: 0;
+}
+
+    .toggle-btn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background-color: #1abc9c;
+      border: none;
+      color: white;
+      padding: 12px 16px;
+      font-size: 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .sidebar {
+      height: 100vh;
+      width: 270px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      background-color: #2c3e50;
+      padding: 60px 20px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 25px;
+      color: white;
+    }
+    .sidebar button {
+      padding: 16px;
+      font-size: 16px;
+      background-color: #34495e;
+      border: none;
+      border-radius: 10px;
+      color: white;
+      cursor: pointer;
+    }
+    .sidebar button:hover {
+      background-color: #1abc9c;
+    }
+    .sidebar h2 {
+      border-bottom: 1px solid white;
+      padding-bottom: 10px;
+    }
+    .main {
+      margin-left: 290px;
+      padding: 40px;
+    }
+    .intro {
+      font-size: 26px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .start-btn {
+      display: block;
+      margin: 0 auto;
+      padding: 15px 35px;
+      font-size: 18px;
+      border: none;
+      border-radius: 10px;
+      background-color: #3498db;
+      color: white;
+      cursor: pointer;
+    }
+    .start-btn:hover {
+      background-color: #2980b9;
+    }
+    .upload-section {
+      text-align: center;
+      margin-top: 50px;
+    }
+    input[type="file"] {
+      padding: 10px;
+      margin-bottom: 20px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+    }
+    #output {
+      margin-top: 30px;
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      white-space: pre-line;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    .btn-download {
+      margin-top: 20px;
+      padding: 12px 24px;
+      font-size: 16px;
+      background-color: #27ae60;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .btn-download:hover {
+      background-color: #2ecc71;
+    }
+    canvas {
+      margin-top: 30px;
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+
+    /* Modal for saved files */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 20%;
+      left: 30%;
+      width: 40%;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+      z-index: 2000;
+    }
+    .modal h3 {
+      margin-top: 0;
+      font-size: 20px;
+      color: #2c3e50;
+    }
+    .modal ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    .modal ul li {
+      padding: 6px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .modal button {
+      margin-top: 10px;
+      background-color: #e74c3c;
+    }
+    .modal button:hover {
+      background-color: #c0392b;
+    }
+  </style>
+</head>
+<body>
+
+  <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+
+  <div class="sidebar" id="sidebar">
+    <h2>HR Panel</h2>
+    <button onclick="saveResume()">📄 Save Resume</button>
+    <button onclick="saveResult()">📊 Save Result</button>
+    <button onclick="viewSavedFiles()">📁 View Saved Files</button>
+  </div>
+
+  <div class="main">
+    <div class="intro" id="intro">Welcome to the <b>Smart Resume Analyzer</b></div>
+    <button class="start-btn" onclick="document.getElementById('uploadSection').style.display='block'; this.style.display='none'; document.getElementById('intro').style.display='none';">Get Started</button>
+
+    <div class="upload-section" id="uploadSection" style="display:none;">
+      <input type="file" id="resumeInput" accept=".pdf"><br>
+      <button class="start-btn" onclick="analyzeResume()">Analyze Resume</button>
+      <button class="btn-download" onclick="downloadPDF()">Download Report</button>
+
+      <div id="output"></div>
+      <canvas id="barChart" width="600" height="400"></canvas>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal" id="savedModal">
+    <h3>📁 Saved Files</h3>
+    <div id="savedContent"></div>
+    <button onclick="document.getElementById('savedModal').style.display='none'">Close</button>
+  </div>
+
+  <!-- Script -->
+  <script>
+    let resumeText = "";
+    let analysisResult = "";
+
+    const domains = {
+      IT: ["python", "java", "sql", "javascript", "html", "css", "react", "node", "api"],
+      Marketing: ["seo", "content", "brand", "strategy", "analytics", "email", "campaign"],
+      Design: ["photoshop", "illustrator", "ux", "ui", "figma", "sketch", "prototyping"],
+      HR: ["recruitment", "training", "policy", "onboarding", "payroll"]
+    };
+
+    function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const main = document.querySelector('.main');
+  sidebar.classList.toggle('closed');
+  main.classList.toggle('sidebar-closed');
+}
+
+
+    document.getElementById("resumeInput").addEventListener("change", function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+
+      reader.onload = function () {
+        const typedarray = new Uint8Array(reader.result);
+        pdfjsLib.getDocument(typedarray).promise.then(pdf => {
+          let pages = [];
+          for (let i = 1; i <= pdf.numPages; i++) {
+            pages.push(pdf.getPage(i).then(page =>
+              page.getTextContent().then(content =>
+                content.items.map(item => item.str).join(" ")
+              )
+            ));
+          }
+          Promise.all(pages).then(data => {
+            resumeText = data.join(" ");
+            document.getElementById("output").textContent = "✅ PDF Loaded. Ready to analyze!";
+          });
+        });
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    function analyzeResume() {
+      if (!resumeText.trim()) {
+        alert("Please upload a resume PDF first.");
+        return;
+      }
+
+      const scores = {};
+      const details = [];
+      for (let domain in domains) {
+        const found = domains[domain].filter(k => resumeText.toLowerCase().includes(k));
+        const score = Math.round((found.length / domains[domain].length) * 100);
+        scores[domain] = score;
+        details.push(`${domain} Match: ${score}%\nKeywords: ${found.join(', ') || 'None'}`);
+      }
+
+      const labels = Object.keys(scores);
+      const data = Object.values(scores);
+
+      new Chart(document.getElementById('barChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Skill Match (%)',
+            data,
+            backgroundColor: ['#3498db', '#e67e22', '#9b59b6', '#2ecc71']
+          }]
+        },
+        options: {
+          scales: {
+            y: { beginAtZero: true, max: 100 }
+          }
+        }
+      });
+
+      analysisResult = `✅ Resume Analysis Complete\n\n${details.join("\n\n")}`;
+      document.getElementById("output").textContent = analysisResult;
+    }
+
+    function downloadPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(16);
+      doc.text("Smart Resume Analyzer - Report", 20, 20);
+      doc.setFontSize(12);
+      const lines = analysisResult.split("\n");
+      lines.forEach((line, i) => doc.text(line, 20, 40 + i * 10));
+      doc.save("resume_analysis_report.pdf");
+    }
+
+    function saveResume() {
+      const saved = localStorage.getItem("savedResumes") || "[]";
+      const list = JSON.parse(saved);
+      const timestamp = new Date().toLocaleString();
+      list.push({ name: `Resume_${timestamp}`, data: resumeText });
+      localStorage.setItem("savedResumes", JSON.stringify(list));
+      alert("✅ Resume saved!");
+    }
+
+    function saveResult() {
+      const saved = localStorage.getItem("savedResults") || "[]";
+      const list = JSON.parse(saved);
+      const timestamp = new Date().toLocaleString();
+      list.push({ name: `Analysis_${timestamp}`, data: analysisResult });
+      localStorage.setItem("savedResults", JSON.stringify(list));
+      alert("📊 Result saved!");
+    }
+
+    function viewSavedFiles() {
+      const resumes = JSON.parse(localStorage.getItem("savedResumes") || "[]");
+      const results = JSON.parse(localStorage.getItem("savedResults") || "[]");
+      const modal = document.getElementById("savedModal");
+      const content = document.getElementById("savedContent");
+
+      let html = "";
+
+      if (resumes.length) {
+        html += "<strong>📝 Resumes:</strong><ul>";
+        resumes.forEach(r => {
+          html += `<li>${r.name}</li>`;
+        });
+        html += "</ul>";
+      }
+
+      if (results.length) {
+        html += "<strong>📊 Results:</strong><ul>";
+        results.forEach(r => {
+          html += `<li>${r.name}</li>`;
+        });
+        html += "</ul>";
+      }
+
+      if (!html) {
+        html = "No saved files found.";
+      }
+
+      content.innerHTML = html;
+      modal.style.display = "block";
+    }
+  </script>
+</body>
+</html>
